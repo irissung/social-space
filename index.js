@@ -4,13 +4,19 @@
   const INDEX_URL = BASE_URL + '/api/v1/users/'
   const data = []
   const dataPanel = document.getElementById('data-panel')
+  let id
   //頁數相關變數
   const pagination = document.getElementById('pagination')
   const ITEM_PER_PAGE = 12
   let newPage = 1
-  //set getPagedata()
+  //set getPageData()
   let paginationData = []
   const changeIcon = document.querySelector('.change-icon')
+  //modal變數
+  const showUserInfo = document.getElementById('show-user-info')
+  //get search bar element
+  const searchForm = document.getElementById('search')
+  const searchInput = document.getElementById('search-input')
 
 
   //設定函數-新增名單(卡片式)
@@ -26,14 +32,13 @@
       }
       htmlContent += `
         <div class="col-sm-3">
-
           <div class="card mb-2" data-toggle="modal" data-target="#show-user-modal" data-id="${item.id}" ${background}>
             <img class="card-img-top" src="${item.avatar}" alt="Card image cap">
-            <div class="card-body user-item-body">
-              <h5 class="card-name">${item.name} ${item.surname}
-              </h5>
-              <span class="card-age">Age：${item.age}</span>
+            <div class="card-body user-item-body" data-id="${item.id}">
+              <h5 class="card-name">${item.name}
               <i class="fa fa-heart-o fa-add-favorite" data-id="${item.id}"></i>
+              </h5>
+              <h5 class="card-age">${item.age}</h5>
             </div>
           </div>
         </div>
@@ -44,7 +49,7 @@
 
   //設定函數-新增名單(清單式)
   function displayDataList2(data) {
-    let htmlContent = '<div class="col list-group">'
+    let htmlContent = '<div class="col list-group" data-toggle="modal" data-target="#show-user-modal">'
     data.forEach(function (item, index) {
       //設置男女背景顏色
       let background
@@ -54,7 +59,7 @@
         background = 'style="background-color:#ADD8E6"'
       }
       htmlContent += `
-        <div class="list-group-item d-flex flex-row justify-content-between" data-toggle="modal" data-target="#show-user-modal" data-id="${item.id}" ${background}>
+        <div class="list-group-item" ${background} data-id="${item.id}">
           <img class="list-img" src="${item.avatar}" alt="List image cap"></img>
           <h5 class="list-name" style="line-height:60px">${item.name} ${item.surname}</h5>
           <h5 class="list-region" style="line-height:60px">${item.region}
@@ -74,10 +79,6 @@
     //設定modal的變數
     const showUserName = document.getElementById('show-user-name')
     const showUserImage = document.getElementById('show-user-image')
-    const showUserRegion = document.getElementById('show-user-region')
-    const showUserAge = document.getElementById('show-user-age')
-    const showUserBirthday = document.getElementById('show-user-birthday')
-    const showUserEmail = document.getElementById('show-user-email')
 
     //設定 request url
     const url = INDEX_URL + id
@@ -85,39 +86,20 @@
     axios
       .get(url)
       .then(res => {
-        console.log(res.data)
         const data = res.data
-        showUserName.innerText = `${data.name} ${data.surname}`
+        showUserName.innerHTML = `${data.name} ${data.surname}`
         showUserImage.innerHTML = `<img src='${data.avatar}' class="img-fluid" alt="user image">`
-        showUserRegion.innerText = `Region：${data.region}`
-        showUserAge.innerText = `Age：${data.age}`
-        showUserBirthday.innerText = `Birth：${data.birthday}`
-        showUserEmail.innerText = `Email：${data.email}`
+
+        const htmlContent = `
+          <p><em id="show-user-region">Region：${data.region}</em></p>
+          <p id='show-user-age'>Age：${data.age}</p>
+          <p id="show-user-birthday">Birth：${data.birthday}</p>
+          <p id="show-user-email">Email：${data.email}</p>
+          <i class="fa fa-heart-o fa-add-favorite" data-id="${data.id}"></i>
+        `
+        showUserInfo.innerHTML = htmlContent
       })
   }
-
-  //設定監聽器，點擊卡片會跳出使用者詳細資料
-  dataPanel.addEventListener('click', (event) => {
-    console.log(event.target)
-    const target = event.target.parentElement
-    let id
-    if (event.target.matches('.fa-add-favorite')) {
-      id = event.target.dataset.id
-      addFavoriteItem(id)
-      showUser(id)
-    }
-    if (event.target.matches('.list-group-item')) {
-      id = event.target.dataset.id
-      showUser(id)
-    } else if (target.matches('.card')) {
-      id = target.dataset.id
-      showUser(id)
-    } else {
-      id = target.parentElement.dataset.id
-      showUser(id)
-    }
-
-  })
 
   //設定函數-最愛清單
   function addFavoriteItem(id) {
@@ -132,6 +114,33 @@
     }
     localStorage.setItem('favoriteUser', JSON.stringify(list))
   }
+
+  //設定監聽器，點擊卡片會跳出使用者詳細資料
+  dataPanel.addEventListener('click', (event) => {
+    //點擊愛心可以將user新增至最愛清單
+    if (event.target.matches('.fa-add-favorite')) {
+      id = event.target.dataset.id
+      addFavoriteItem(id)
+      event.stopPropagation()
+    }
+    //提取事件目標的tagName,利用path來尋找ID
+    if (event.currentTarget.tagName.toLowerCase() === 'div') {
+      if (event.path[1].dataset.id === undefined) {
+        id = event.path[0].dataset.id
+        showUser(id)
+      } else {
+        id = event.path[1].dataset.id
+        showUser(id)
+      }
+    }
+  })
+
+  //設定監聽器，點擊modal中的愛心可以添加user到最愛清單
+  showUserInfo.addEventListener('click', (event) => {
+    if (event.target.matches('.fa-add-favorite')) {
+      addFavoriteItem(id)
+    }
+  })
 
   //設定頁數函數
   function getTotalPages(data) {
@@ -161,6 +170,16 @@
     let pageData = paginationData.slice(offset, offset + ITEM_PER_PAGE)
     displayDataList2(pageData)
   }
+  //分頁函數-分頁樣式
+  function pageStyle(pageNum, data) {
+    pageNum = Number(pageNum)
+    const pageItem = pagination.querySelectorAll('.page-item')
+    //移除其他頁數的active
+    pageItem.forEach(item => item.classList.remove('active'))
+    //點選頁數時加入active
+    const selectPage = pagination.querySelectorAll(`[data-page="${pageNum}"]`)
+    selectPage.forEach(item => item.parentElement.classList.add('active'))
+  }
 
   //導入資料
   axios
@@ -169,6 +188,7 @@
       data.push(...res.data.results)
       getTotalPages(data) //總頁數
       getPageDataCard(1, data) //預設畫面
+      pageStyle(1, data)//預設頁數
     })
     .catch((err) => console.log(err))
 
@@ -191,12 +211,9 @@
       } else {
         getPageDataCard(newPage, data)
       }
+      pageStyle(newPage, data)
     }
   })
-
-  //get search bar element
-  const searchForm = document.getElementById('search')
-  const searchInput = document.getElementById('search-input')
 
   //設定監聽器-搜尋名字
   searchForm.addEventListener('submit', event => {
@@ -208,9 +225,6 @@
     // console.log(results)
     displayDataList(results)
   })
-
-
-
 })()
 
 
